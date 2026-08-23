@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1003267685339",
+    "firebase_url": "https://smart-plant-care-342d6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "smart-plant-care-342d6",
+    "storage_bucket": "smart-plant-care-342d6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1003267685339:android:4221a43ffa243565d0c5fe",
+        "android_client_info": {
+          "package_name": "com.example.smart_plant_care"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBX_ozxtICloTD1zf-zKPcKQk0chpVq7FY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
