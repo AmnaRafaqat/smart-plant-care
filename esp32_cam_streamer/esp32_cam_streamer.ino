@@ -1,14 +1,18 @@
 /*
-  Smart Plant Care System - High-Performance ESP32-CAM Live Streamer
-  -------------------------------------------------------------------
+  Smart Plant Care System - ESP32-CAM Live Video Streamer
+  -------------------------------------------------------
   Hardware: AI-Thinker ESP32-CAM (ESP-32S) with OV2640 Lens
   
-  Optimizations:
-    - Frame pacing & TCP buffer management (eliminates browser infinite loading).
-    - Optimized resolution for rock-solid, low-latency Wi-Fi video.
-    - Endpoints:
-        * Live Stream : http://<IP>:81/stream
-        * Instant Photo: http://<IP>:81/capture
+  Purpose:
+    Connects to Wi-Fi and hosts an HTTP MJPEG live video stream 
+    on port 81 (e.g., http://<IP>:81/stream) for the Flutter mobile app.
+
+  Board Setup in Arduino IDE:
+    - Tools -> Board -> ESP32 Arduino -> "AI Thinker ESP32-CAM"
+    - Tools -> CPU Frequency -> "240MHz (WiFi/BT)"
+    - Tools -> Flash Frequency -> "80MHz"
+    - Tools -> Flash Mode -> "QIO"
+    - Tools -> Partition Scheme -> "Huge APP (3MB No OTA/1MB SPIFFS)"
 */
 
 #include "esp_camera.h"
@@ -38,7 +42,7 @@ const char* password = "wifi.vjpw01";
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-#define FLASH_LED_PIN      4   // Built-in flash LED
+#define FLASH_LED_PIN      4   // Built-in high-power flash LED
 
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
@@ -47,59 +51,58 @@ static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 
 httpd_handle_t stream_httpd = NULL;
 
-// Single-frame capture endpoint (/capture)
-static esp_err_t capture_handler(httpd_req_t *req) {
-  camera_fb_t * fb = esp_camera_fb_get();
-  if (!fb) {
-    httpd_resp_send_500(req);
-    return ESP_FAIL;
-  }
-  httpd_resp_set_type(req, "image/jpeg");
-  httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-  esp_err_t res = httpd_resp_send(req, (const char *)fb->buf, fb->len);
-  esp_camera_fb_return(fb);
-  return res;
-}
-
-// Continuous MJPEG stream endpoint (/stream)
 static esp_err_t stream_handler(httpd_req_t *req) {
   camera_fb_t * fb = NULL;
   esp_err_t res = ESP_OK;
-  char part_buf[64];
+  size_t _jpg_buf_len = 0;
+  uint8_t * _jpg_buf = NULL;
+  char * part_buf[64];
 
   res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
   if (res != ESP_OK) {
     return res;
   }
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
 
   while (true) {
     fb = esp_camera_fb_get();
     if (!fb) {
       Serial.println("Camera capture failed");
       res = ESP_FAIL;
-      break;
+    } else {
+      if (fb->format != PIXFORMAT_JPEG) {
+        bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
+        esp_camera_fb_return(fb);
+        fb = NULL;
+        if (!jpeg_converted) {
+          Serial.println("JPEG compression failed");
+          res = ESP_FAIL;
+        }
+      } else {
+        _jpg_buf_len = fb->len;
+        _jpg_buf = fb->buf;
+      }
     }
-
-    size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, fb->len);
-    res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
     if (res == ESP_OK) {
-      res = httpd_resp_send_chunk(req, (const char *)fb->buf, fb->len);
+      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
+      res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+    }
+    if (res == ESP_OK) {
+      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
     }
     if (res == ESP_OK) {
       res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
     }
-
-    esp_camera_fb_return(fb);
-    fb = NULL;
-
+    if (fb) {
+      esp_camera_fb_return(fb);
+      fb = NULL;
+      _jpg_buf = NULL;
+    } else if (_jpg_buf) {
+      free(_jpg_buf);
+      _jpg_buf = NULL;
+    }
     if (res != ESP_OK) {
       break;
     }
-
-    // Frame-rate pacing to avoid buffer overflow on Wi-Fi (approx 25-30 FPS)
-    vTaskDelay(pdMS_TO_TICKS(30));
   }
   return res;
 }
@@ -116,16 +119,8 @@ void startCameraServer() {
     .user_ctx  = NULL
   };
 
-  httpd_uri_t capture_uri = {
-    .uri       = "/capture",
-    .method    = HTTP_GET,
-    .handler   = capture_handler,
-    .user_ctx  = NULL
-  };
-
   if (httpd_start(&stream_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(stream_httpd, &stream_uri);
-    httpd_register_uri_handler(stream_httpd, &capture_uri);
     Serial.println("Camera Stream Server started successfully!");
   }
 }
@@ -133,7 +128,7 @@ void startCameraServer() {
 void setup() {
   Serial.begin(115200);
   pinMode(FLASH_LED_PIN, OUTPUT);
-  digitalWrite(FLASH_LED_PIN, LOW); // Flash OFF
+  digitalWrite(FLASH_LED_PIN, LOW); // Turn off flash LED
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -157,15 +152,14 @@ void setup() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  // Ultra-fast responsive resolution
-  // CIF (400x296) and QVGA (320x240) stream instantly with zero lag over Wi-Fi
+  // Frame size & quality options
   if (psramFound()) {
-    config.frame_size   = FRAMESIZE_VGA;   // 640x480
-    config.jpeg_quality = 12;              // Crisp quality
+    config.frame_size   = FRAMESIZE_VGA;  // 640x480
+    config.jpeg_quality = 12;             // 10-63 (lower means higher quality)
     config.fb_count     = 2;
   } else {
-    config.frame_size   = FRAMESIZE_CIF;   // 400x296 (Lightweight, instant loading)
-    config.jpeg_quality = 12;
+    config.frame_size   = FRAMESIZE_SVGA;
+    config.jpeg_quality = 15;
     config.fb_count     = 1;
   }
 
@@ -174,13 +168,6 @@ void setup() {
   if (err != ESP_OK) {
     Serial.printf("Camera initialization failed with error 0x%x\n", err);
     return;
-  }
-
-  // Set sensor orientation
-  sensor_t * s = esp_camera_sensor_get();
-  if (s != NULL) {
-    s->set_vflip(s, 1); // Flip vertically if mounted upside down
-    s->set_brightness(s, 1);
   }
 
   // Connect to WiFi
@@ -196,12 +183,9 @@ void setup() {
   startCameraServer();
 
   Serial.println("\n===========================================");
-  Serial.print("Live Stream URL  : http://");
+  Serial.print("Camera Stream URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println(":81/stream");
-  Serial.print("Instant Snapshot : http://");
-  Serial.print(WiFi.localIP());
-  Serial.println(":81/capture");
   Serial.println("===========================================\n");
 }
 
