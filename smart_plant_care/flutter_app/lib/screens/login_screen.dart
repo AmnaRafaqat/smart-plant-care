@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       print("LOGIN SUCCESS");
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
       print("FIREBASE ERROR: ${e.code}");

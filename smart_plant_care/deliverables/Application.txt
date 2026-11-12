@@ -1,0 +1,8 @@
+You are required to send software application code, circuit diagrams, simulation files and any other important file.
+For this purpose compress all files (zip or rar) and email to your project supervisor.
+
+Some times Gmail will return the email saying the email contains illegal attachment. This can be fixed by renaming the file extension
+to something not very common. Such as when compressing the file you should not set it as FileName.rar or FileName.zip
+instead you can use: FileName.abc etc
+
+This way your attachment can be sent without any problem, and the supervisor can rename .abc back to .rar or .zip to get original file.

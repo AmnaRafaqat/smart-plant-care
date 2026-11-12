@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// NFR-03: each signed-in user may only access plants they own (ownerId).
+// Sensor/alert writes still go through Cloud Functions (Admin SDK bypasses rules).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isPlantOwner() {
+      return isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /plants/{plantId} {
+      allow read, update, delete: if isPlantOwner();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid;
+
+      match /readings/{readingId} {
+        allow read: if isSignedIn()
+          && get(/databases/$(database)/documents/plants/$(plantId)).data.ownerId
+            == request.auth.uid;
+        allow write: if false;
+      }
+
+      match /alerts/{alertId} {
+        allow read: if isSignedIn()
+          && get(/databases/$(database)/documents/plants/$(plantId)).data.ownerId
+            == request.auth.uid;
+        allow write: if false;
+      }
+    }
+  }
+}

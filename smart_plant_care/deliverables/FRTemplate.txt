@@ -1,0 +1,399 @@
+Final Project Report
+
+<<PROJECT NAME>>
+
+
+
+
+
+
+
+
+
+
+
+
+
+Project Supervisor
+<<Project Supervisor Name>>
+				
+
+Submitted By
+
+<<Project Group ID>>
+
+<<Group Member Name>>		<<VU ID>>
+<<Group Member Name>>		<<VU ID>>
+
+
+
+
+
+Software Projects & Research Section, 
+Department of Computer Sciences,
+Virtual University of Pakistan
+
+
+
+CERTIFICATE
+
+This is to certify that <<First Member Name>> (<<VU ID>>), <<Second Member Name>> (<<VU ID>>) have worked on and completed their Software Project at Software & Research Projects Section, Department of Computer Sciences, Virtual University of Pakistan in partial fulfillment of the requirement for the degree of BS in Computer Sciences under my guidance and supervision.
+
+In our opinion, it is satisfactory and up to the mark and therefore fulfills the requirements of BS in Computer Sciences.
+
+
+Supervisor / Internal Examiner
+
+<<Project Supervisor Name>>
+Supervisor,
+Software Projects & Research Section,
+Department of Computer Sciences
+Virtual University of Pakistan
+
+
+___________________
+(Signature)
+
+
+External Examiner/Subject Specialist
+<<External Supervisor Name>>
+
+
+___________________
+(Signature)
+
+     Accepted By:
+     
+     _____________
+							        (For office use)			
+
+EXORDIUM
+
+
+
+
+In the name of Allah, the Compassionate, the Merciful.
+
+Praise be to Allah, Lord of Creation,
+The Compassionate, the Merciful,
+King of Judgment-day!
+
+You alone we worship, and to You alone we pray for help,
+Guide us to the straight path
+
+The path of those who You have favored,
+
+Not of those who have incurred Your wrath,
+Nor of those who have gone astray.
+
+
+DEDICATION
+
+
+
+
+
+
+
+ACKNOWLEDGEMENT
+
+PREFACE
+
+TABLE OF CONTENTS
+CHAPTER NO. 1
+GATHERING & ANALYZING INFO	10
+1.1	INTRODUCTION								
+1.2 	PURPOSE									
+1.3	SCOPE										 
+1.4	DEFINITIONS, ACRONYMS AND ABBREVIATIONS
+1.5	INTENDED APPROACH
+1.6	ORGANIZATION
+CHAPTER NO. 2
+CONCEPT AND LITERATURE REVIEW	11
+2.1 	INTRODUCTION
+2.2 	CONCEPT & BACKGROUND
+2.3 LITERATURE REVIEW
+2.4 CONCLUSION
+CHAPTER NO. 3
+SYSTEM DESIGN AND IMPLEMENTATION	12
+3.1	INTRODUCTION								
+3.2 	PURPOSE
+3.3 	SYSTEM HARDWARE DESIGN (COMPLETE)
+    3.3.1 	INTRODUCTION
+    3.3.2	ELECTRONIC COMPONENT
+    3.3.3 	MODULAR DESIGN
+    3.3.4 	BLOCK DIAGRAMS
+    3.3.5 	CIRCUIT DIAGRAMS
+3.4 	SYSTEM SOFTWARE DESIGN (COMPLETE DETAILS IF ANY)
+    3.4.1	INTRODUCTION 	
+    3.4.2 	FLOW CHARTS AND DIAGRAMS
+    3.4.2 	CODE DETAILS
+		
+
+	
+CHAPTER NO.4
+TESTING AND TECHNICAL CHALLENGES	13
+4.1 	INTRODUCTION
+4.1 	RESULTS
+CHAPTER NO.5
+CONCLUSION AND FUTURE ENHANCEMENTS	13
+5.1 	CONCLUSION
+5.2 	FUTURE ENHANCEMENTS
+REFERENCES	13
+APPENDIX	13
+
+
+                    
+      			
+
+LIST OF DIAGRAMS
+ENLIST ALL DIAGRAMS IN YOUR REPORT HERE	10
+      
+
+
+
+
+
+<<Dear Students, you have to take special care of page numbers, which are written against each Chapter and sub headings. You have to mention your own page numbers and correct one against each document heading. Make proper table of contents. Remember that if there are any new headings or you have included more headings in your documents then you also have to write these in table of contents and modify table of contents according to your documents material>>
+
+
+
+
+
+
+
+
+
+<<Dear Students, before starting each chapter the following would be the title page for each chapter on a separate page>>
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+CHAPTER 1
+Gathering & Analyzing Info
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+CHAPTER 2
+Concept and Literature Review
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+CHAPTER 3
+System Design and Implementation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+
+
+
+CHAPTER 4
+Testing and Technical Challenges
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CHAPTER 5
+Conclusion and Future Enhancements
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+REFERENCES
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+APPENDIX
+
+
+
+		
+
+			
+

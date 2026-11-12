@@ -29,7 +29,7 @@ class _SignupScreenState extends State<SignupScreen> {
       await credential.user?.updateDisplayName(_nameController.text.trim());
 
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
       setState(() {

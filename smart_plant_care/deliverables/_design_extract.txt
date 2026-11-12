@@ -1,0 +1,251 @@
+Smart Plant Care System with AIBased Monitoring and Mobile App
+Design Document
+Version 1.0
+Student Name: Amna
+Group Id: BC220401947 (S26PROJECTE6647)
+Supervisor Name: Waqas Ahmad  (waqas.ahmad@vu.edu.pk, Ext. 2822)
+Revision History
+Date (dd/mm/yyyy)
+Version
+Description
+Author
+16/07/2026
+1.0
+Initial Design Document: system design, block/communication/circuit diagrams and project flow for the Smart Plant Care System
+BC220401947  Amna
+Table of Contents
+Revision History1
+Table of Contents1
+1. Introduction1
+1.1 Objective1
+1.2 Intended Approach1
+2. Background1
+3. Literature Review1
+3.1 IoTBased Plant and Soil Monitoring Systems1
+3.2 MachineLearningBased Irrigation and Watering Prediction1
+4. Proposed Project Design1
+4.1 Functional and NonFunctional Requirements1
+4.2 Block Diagram1
+4.3 Communication Links1
+4.4 Components of User Interface and Circuit Design1
+4.5 Project Flow1
+5. Project Breakdown1
+6. Milestone Achieved1
+6.1 Completion of Review of Literature1
+6.2 Selection of Functionalities of Project1
+6.3 Selection of Hardware Components1
+6.4 Selection of Software Platform and Design1
+7. References1
+1. Introduction
+Maintaining a plant in good health is a simple idea that is surprisingly easy to get wrong in practice. Soil dries out or stays waterlogged, temperature and light change with the seasons, and a person’s daily routine rarely lines up with what a plant actually needs at that moment. The Smart Plant Care System is a response to this everyday gap between intention and outcome: it combines low-cost IoT sensors, a WiFi enabled microcontroller, a mobile application, and a lightweight machine learning model so that plant care becomes something the system actively supports rather than something the owner has to remember unaided.
+At its core, the project places a soil moisture sensor, a temperature and humidity sensor, and a light sensor next to the plant, all wired to an ESP32 microcontroller. The ESP32 reads these values at regular intervals and forwards them over WiFi to a Firebase backend, which stores the readings, enforces user specific access, and triggers push notifications when a threshold is crossed. A Flutter based mobile application gives the user a live dashboard, historical charts, and, through a Python/Scikit learn model trained on the plant’s own history, a prediction of when the plant will next need water. An optional relay controlled water pump lets the user act on that prediction directly from the app.
+This document is the Design Document for the project and builds directly on the Software Requirements Specification (SRS) that was submitted earlier for the same project (Group Id: BC220401947, submitted 09/06/2026). Where the SRS focused on establishing what the system must do, this document focuses on how the system is structured to do it: the reasoning behind the chosen technologies, the block level architecture, the communication paths between hardware and software, the circuit level wiring of the sensors, and the end-to-end flow of a single reading from sensor to user notification. Chapter 4 presents this design in detail through four dedicated diagrams; Chapter 5 breaks the remaining project work into a phase wise schedule; and Chapter 6 records the milestones already achieved at this stage of the project.
+1.1 Objective
+The objective of the Smart Plant Care System is to give ordinary plant owners home users, students, and small scale gardeners rather than commercial farms a lowcost, always on way to know the real condition of their plant and to act on it before damage occurs. Concretely, the system is built to achieve four things:
+Continuously sense the environment around a plant (soil moisture, temperature, humidity, and light) and make those readings visible in near real time on a mobile app.
+Alert the user automatically, through push notifications, whenever a reading moves outside a safe range defined for that specific plant.
+Learn from each plant’s own historical data to predict when it will next need water, turning the system from a purely reactive alarm into a proactive assistant.
+Optionally allow the user to close the loop entirely by triggering a water pump from the app, without being physically present near the plant.
+Taken together, these objectives are meant to reduce the two most common failure modes in home plant care forgetting to check on a plant, and misjudging how much water or light it actually needs while keeping the hardware cost and the technical burden on the user as low as possible.
+1.2 Intended Approach
+The gap this project addresses is a familiar one to anyone who has kept houseplants: watering decisions are usually made by feel (touching the soil, or simply remembering how many days have passed) rather than by measurement, and the consequence is either an overwatered, root stressed plant or an underwatered, wilting one. Commercial smart gardening products exist, but they tend to be either expensive closed ecosystems tied to a single manufacturer’s pots, or simple WiFi soil sensors with no learning component and no automation. This left an open, addressable middle ground: a system built on inexpensive, widely available components (ESP32, DHT22, a resistive/capacitive soil moisture sensor, an LDR) paired with a general-purpose mobile app and a modest machine learning model, that any user could adopt for a single plant or scale up profile by profile for several.
+The solution designed for this problem follows a layered architecture, described fully in Chapter 4: a sensing/hardware layer built around the ESP32, a cloud backend layer built on Firebase that handles authentication, storage, and alerting, an AI layer that turns historical readings into a wateringtime prediction, and a Flutter mobile application that ties all of this together into a single interface for the user. The VU Process Model, a hybrid of the Waterfall and Spiral models, as adopted in the project’s SRS and taught in the CS605 (Software Engineering II) course handouts is used to structure the remaining development work described in Chapter 5, so that the hardware and software design established in this document can be revisited and refined if risks such as sensor drift, Firebase quota limits, or ML prediction accuracy emerge during implementation.
+2. Background
+Two independent trends motivate this project. The first is the well documented shift in agriculture and horticulture toward IoT based environmental sensing: cheap, WiFi capable microcontrollers such as the ESP32 have made it possible to instrument a single pot or a large field for a fraction of the cost of a decade ago, and a large and growing body of published work (surveyed in Chapter 3) confirms that soil moisture and microclimate sensing measurably improves watering outcomes and reduces water waste. The second is the increasing comfort of ordinary consumers with mobile appmediated control of physical devices, smart thermostats, smart plugs, and fitness trackers have normalised the idea of a phone as the primary interface to a small embedded system.
+The specific problem this project targets sits at the overlap of these two trends but is not, itself, an agricultural scale problem: it is the day today difficulty an individual has in keeping track of one or a handful of plants around a home, hostel room, or office. Existing IoT irrigation research (Chapter 3) is almost entirely written for greenhouses or open field agriculture, where the scale, cost tolerance, and user expertise are very different from a student or home user who wants a plug and play sensor next to a single pot and a simple mobile alert. Determining that this was, in fact, a gap worth addressing involved three steps that were carried out while preparing the SRS and this design: reviewing existing commercial smart plant products and their limitations (closed ecosystems, no historical trend view, no predictive component); reviewing the IoT agriculture literature to confirm that the underlying sensing and communication techniques are well proven and low risk to reuse at a smaller scale; and reviewing machine learning approaches to irrigation scheduling to establish that a lightweight, locally trainable model (rather than a large field scale model) is a reasonable fit for a single plant, single user dataset.
+The output of this analysis is the layered design presented in Chapter 4: proven, low cost IoT sensing components are combined with a consumer grade backend (Firebase) instead of a custom server, and a simple supervised learning model is used for watering prediction instead of the more elaborate reinforcement learning or model predictive control schedulers used in largescale agricultural research, those approaches are discussed in Chapter 3 for context, but they solve a harder, larger scale problem than the one this project targets.
+3. Literature Review
+This chapter reviews recent published work in two areas directly relevant to the Smart Plant Care System: (a) IoT based sensing and monitoring systems for plants and crops, and (b) machine learning based approaches to irrigation and watering scheduling. The review is used to justify the specific technology choices made in Chapter 4, and to explicitly position this project relative to the larger scale agricultural systems described in the literature.
+3.1 IoT Based Plant and Soil Monitoring Systems
+Akib and Hasib (2026) describe a smart plant monitoring and irrigation system built around an ESP32 microcontroller that collects data from a DHT22 temperature/humidity sensor, a water level sensor, and a soil moisture sensor, transmitting all readings to a cloud analytics platform for real time monitoring and automated alert generation. Their reported results, including a soil moisture accuracy of 92% and roughly 40% water savings compared with conventional watering, closely mirror the hardware combination (ESP32 + DHT22 + soil moisture sensor) and the cloud first architecture adopted for this project, and give confidence that this combination of low-cost components is capable of reliable, real time environmental sensing.
+Afifah (2026) presents a similar ESP32based real time soil moisture monitoring system aimed specifically at smart agriculture, and discusses the tradeoffs of resistive soil moisture sensors (low cost and simplicity, at the expense of longer-term corrosion) versus capacitive alternatives. This comparison directly informed the sensor selection discussion in Chapter 4.4 of this document and the choice to treat the soil moisture sensor as a field replaceable component rather than a permanently fixed part of the hardware design.
+Joshi, Sonika, Tharani, Singh, and Deepa (2024) review a broader IoT based smart plant monitoring architecture that layers sensor data collection, cloud storage, and a mobile/web interface, and explicitly note that automatic alerting (rather than requiring the user to check a dashboard) is what differentiates a genuinely useful system from a simple data logger. This finding is reflected directly in FR06 of the project’s SRS (Automated Alerts and Push Notifications) and in the Firebase Cloud Functions component of the block diagram in Section 4.2.
+3.2 Machine Learning Based Irrigation and Watering Prediction
+Agyeman, Naouri, Appels, Liu, and Shah (2023) propose a largescale irrigation scheduler that combines unsupervised learning (to delineate a field into management zones), an LSTM network (to model soil moisture dynamics), and reinforcement learning with model predictive control, evaluated on a 26.4hectare research farm. Their results (623% water savings depending on configuration) demonstrate the value of learning from historical soil moisture trends to anticipate irrigation needs rather than reacting to a single threshold crossing the same principle behind FR07 and FR08 of this project’s SRS (the AI based recommendation system and watering time prediction).
+However, the scale and complexity of Agyeman et al.’s approach multizone clustering, an LSTM dynamics model, and a reinforcement learning based model predictive controller is designed for large commercial fields with dedicated computing infrastructure, and is disproportionate to a single plant, single user home system with a comparatively small and slowly growing dataset. This comparison is the direct justification for the lighter weight design choice made in this project: a Scikit learn based supervised model (rather than an LSTM/RL pipeline) trained on a single plant’s own historical sensor readings, which is appropriate given the limited data volume, the need for the model to run inexpensively on a small cloud function, and the two second prediction latency required by NFR01 of the SRS.
+Taken together, the reviewed literature supports two conclusions that shape the design in Chapter 4: first, that an ESP32centred, WiFi connected sensing layer feeding a cloud backend is a proven and low risk architecture at this scale; and second, that a simple supervised learning model is a better fit for this project’s data volume and latency requirements than the more elaborate multiparadigm schedulers used in largescale agricultural research.
+4. Proposed Project Design
+This chapter presents the complete design of the Smart Plant Care System: the finalised functional and nonfunctional requirements carried forward from the SRS, the system block diagram, the communication links between hardware and software components, the circuit level wiring together with the user interface components, and the end-to-end project flow. Four diagrams accompany this chapter (Figures 4.2.1, 4.3.1, 4.4.1, and 4.5.1); each has been produced as a separate image file so it can also be inserted, resized, or edited independently of this document, and placement guidance is given under each figure.
+4.1 Functional and Non-Functional Requirements
+The functional and nonfunctional requirements below are unchanged from the approved SRS (version 1.0, submitted 09/06/2026) and are restated here because the remaining sections of this chapter design the system directly against them.
+ID
+Requirement
+Description
+FR01
+Sensor Data Collection
+ESP32 continuously reads soil moisture, temperature, humidity, and light intensity at regular intervals.
+FR02
+RealTime Data Transmission
+Sensor data is sent from the ESP32 to the backend over WiFi at intervals of no more than 30 seconds.
+FR03
+User Registration and Login
+Users register and log in via Firebase Authentication using email and password.
+FR04
+Plant Profile Management
+Users create a profile per plant with name, type, and custom moisture/light thresholds.
+FR05
+Live Dashboard
+The app shows current sensor readings per plant, autorefreshing and colourcoded by safe/warning/critical range.
+FR06
+Automated Alerts
+A push notification is sent whenever a reading crosses the threshold defined for that plant.
+FR07
+AIBased Recommendation System
+A trained model analyses historical data per plant and suggests watering times and ideal ranges.
+FR08
+Watering Prediction
+The ML model predicts when the plant will next require watering, shown in the app.
+FR09
+Manual Override / Pump Control
+If the optional pump hardware is connected, the user can trigger watering directly from the app.
+FR10
+Data History and Visualization
+Historical readings are viewable as line/bar charts over selectable time ranges.
+NFR01
+Performance
+Sensor data appears inapp within 3 seconds of collection; ML predictions generate within 2 seconds.
+NFR02
+Reliability
+Minimum 95% uptime on stable WiFi; readings cache locally and sync once connectivity resumes.
+NFR03
+Security
+All user data secured via Firebase Authentication and Firestore security rules; no crossuser access.
+NFR04
+Usability
+Any feature reachable within 3 taps; status communicated clearly via colour and iconography.
+NFR05
+Scalability
+Backend supports at least 50 concurrent users and up to 10 plant profiles per user without degradation.
+NFR06
+Portability
+Flutter codebase targets Android and iOS from a single codebase; hardware uses standard ESP32 boards.
+NFR07
+Maintainability
+Clean, modular, commented code, versioncontrolled with Git and hosted on GitHub.
+4.2 Block Diagram
+The system is organized into four layers. The hardware/IoT layer consists of the soil moisture sensor, the DHT22 temperature and humidity sensor, the LDR light sensor, and the optional relay driven water pump, all connected to an ESP32 microcontroller that acts as the data acquisition and control hub. The backend/cloud layer is built on Firebase: Fire store stores plant profiles and timestamped readings, Firebase Authentication secures peruser access, and Firebase Cloud Functions watch incoming readings against each plant’s thresholds and trigger push notifications when a value falls outside the safe range. The AI layer is a Python/Scikit learn prediction service that consumes historical readings from Fire store and returns a next watering time prediction. The application layer is the Flutter mobile app, which provides authentication, the live dashboard and plant profile screens, alerts/history/AI tip screens, and pump control.
+Figure 4.2.1  System Block Diagram of the Smart Plant Care System
+4.3 Communication Links
+Data moves through the system over three distinct links, each with a different protocol and purpose. First, the ESP32 communicates with Firebase over WiFi (IEEE 802.11) using HTTPS, sending sensor readings as a JSON payload at intervals of no more than 30 seconds, in line with FR02. Second, the Flutter mobile application communicates with Firebase using the Firebase SDK’s real time listeners, which push updated readings to the app automatically (rather than the app polling for changes) and cache the most recent data locally so the dashboard remains usable briefly even if connectivity drops, satisfying NFR02. Third, Firebase communicates with the Python based ML prediction service over a REST API: historical readings are sent to the service, and a predicted next watering time is returned to be stored and displayed. A fourth, event driven path exists specifically for alerts: when a Cloud Function detects a threshold breach, it uses Firebase Cloud Messaging (FCM) to deliver a push notification directly to the user’s device, independent of whether the app is open at that moment.
+Figure 4.3.1  Communication Link Diagram
+4.4 Components of User Interface and Circuit Design
+The mobile application is organized  into six functional screens/components that map directly to the use cases already documented in the SRS use case diagram: (1) an Authentication screen for registration and login; (2) a Plant Profile screen for adding a plant and setting its name, type, and custom thresholds; (3) a Live Dashboard showing current readings for each plant with safe/warning/critical colour coding; (4) an Alerts panel that surfaces push notification history; (5) a History screen with line and bar charts over selectable time ranges (last 7 days, 30 days, etc.); and (6) a Pump Control screen, shown only when the optional pump hardware is connected, that lets the user manually trigger watering.
+On the hardware side, all sensors share the ESP32’s 3.3V and GND rails. The soil moisture sensor and the LDR (wired as a voltage divider with a 10kΩ resistor) are read on separate analog (ADC) pins, while the DHT22 uses a single digital data pin with a 10kΩ pullup resistor to 3.3V. The optional relay module is switched from a digital GPIO pin and, in turn, switches a separate 512V supply line to the water pump, so that the ESP32’s own low current GPIO pins never carry the pump’s operating current directly the relay isolates the two power domains, which protects the microcontroller from voltage spikes generated by the pump motor.
+Figure 4.4.1  ESP32 Circuit / Wiring Diagram
+4.5 Project Flow
+At runtime, the system follows a repeating cycle. Sensors take a reading, which the ESP32 packages as JSON and transmits to Firebase over WiFi (FR01, FR02). Fire store stores the reading with a timestamp. A Cloud Function immediately checks whether the reading is outside the safe range configured for that plant; if it is, an FCM push notification is sent to the user’s device (FR06); if not, the reading is simply appended to that plant’s historical log (FR10). Independently of this per reading check, the mobile app continuously displays the live dashboard and, once at least seven days of history are available for a plant (as required by the SRS usage scenario for AI recommendations), calls the ML prediction service to show a next watering time estimate and care recommendation (FR07, FR08). This entire cycle repeats every sensor read interval, so the app’s view of each plant is never more than about 30 seconds out of date.
+Figure 4.5.1  Project / System Flow Diagram
+5. Project Breakdown
+The project is broken down into seventeen tasks spanning a sixteen-week schedule, following the five phases of the VU Process Model already adopted in the SRS: Planning and Requirements (Weeks 12), System Design (Weeks 34), Implementation (Weeks 510), Testing and Integration (Weeks 1113), and Final Review and Submission (Weeks 1416). The current stage of the project (this Design Document) falls at the end of the System Design phase, meaning the breakdown below has already been validated once against the SRS work plan and is carried forward unchanged, since no scope or timeline change was required as a result of finalising the design in Chapter 4.
+#
+Task / Deliverable
+Start Week
+End Week
+Responsible
+1
+Project Planning and Scope Definition
+Week 1
+Week 1
+Amna (BC220401947)
+2
+Requirements Gathering and SRS Documentation
+Week 1
+Week 2
+Amna (BC220401947)
+3
+Hardware Component Procurement
+Week 2
+Week 3
+Amna (BC220401947)
+4
+System Architecture and UI/UX Design
+Week 3
+Week 4
+Amna (BC220401947)
+5
+ESP32 + Sensor Hardware Setup and Testing
+Week 4
+Week 5
+Amna (BC220401947)
+6
+Firebase Backend Setup (Auth, Fire store)
+Week 5
+Week 6
+Amna (BC220401947)
+7
+Mobile App Development Core Screens
+Week 5
+Week 8
+Amna (BC220401947)
+8
+IoT to Firebase Data Pipeline Development
+Week 6
+Week 8
+Amna (BC220401947)
+9
+ML Model Development and Training
+Week 7
+Week 9
+Amna (BC220401947)
+10
+Push Notification and Alert System
+Week 9
+Week 10
+Amna (BC220401947)
+11
+AI Recommendations Integration in App
+Week 10
+Week 11
+Amna (BC220401947)
+12
+Water Pump Control Feature (Optional)
+Week 10
+Week 11
+Amna (BC220401947)
+13
+Unit Testing and Bug Fixes
+Week 11
+Week 12
+Amna (BC220401947)
+14
+Integration Testing Hardware + App + Backend
+Week 12
+Week 13
+Amna (BC220401947)
+15
+User Acceptance Testing (UAT)
+Week 13
+Week 14
+Amna (BC220401947)
+16
+Final Documentation and Report Writing
+Week 14
+Week 15
+Amna (BC220401947)
+17
+Project Submission and Presentation Prep
+Week 15
+Week 16
+Amna (BC220401947)
+Figure 5.1  Gantt Chart: Smart Plant Care System Project Breakdown
+6. Milestone Achieved
+This chapter records the milestones completed up to and including the preparation of this Design Document, corresponding to the first two phases of the project schedule in Chapter 5 (Planning and Requirements, and System Design).
+6.1 Completion of Review of Literature
+A focused literature review has been completed (Chapter 3), covering four recent, peer reviewed and preprint sources on IoT based plant/soil monitoring and on machine learning based irrigation scheduling. The review confirmed that an ESP32centred sensing architecture is well proven at this scale, and that a lightweight supervised learning model is a better fit for this project’s data volume than the larger multiparadigm schedulers used in field scale agricultural research.
+6.2 Selection of Functionalities of Project
+All ten functional requirements and seven nonfunctional requirements listed in Section 4.1 were finalised during the SRS phase and have not changed during system design; they are restated here as a completed milestone because the entire design in Chapter 4 was produced directly against them. No functionality proposed in the original project proposal was dropped; the water pump control feature remains, as originally scoped, an optional hardware dependent feature (FR09).
+6.3 Selection of Hardware Components
+The hardware bill of materials has been finalised: an ESP32 WiFi microcontroller as the central data acquisition and control unit; a resistive/capacitive soil moisture sensor; a DHT22 sensor for temperature and humidity; an LDR (with a 10kΩ resistor) for light intensity; a relay module and a small 512V DC water pump for the optional automated watering feature; and a 5V/2A power supply. The circuit level wiring for these components is documented in Section 4.4 and Figure 4.4.1.
+6.4 Selection of Software Platform and Design
+The software platform has likewise been finalised: Flutter for the cross platform (Android/iOS) mobile application; Firebase (Authentication, Firestore, and Cloud Functions with FCM) as the backend; Python with Scikit learn for the watering prediction model; Arduino IDE for ESP32 firmware development; and Git/GitHub for version control. The corresponding system design the block diagram, communication links, circuit design, and project flow has been completed and is presented in full in Chapter 4.
+7. References
+[1] A. S. M. A. S. Akib and A. Hasib, "An IoTBased Smart Plant Monitoring and Irrigation System with RealTime Environmental Sensing, Automated Alerts, and Cloud Analytics," arXiv:2601.15830, Jan. 2026. [Online]. Available: https://arxiv.org/abs/2601.15830
+[2] I. N. Afifah, "An IoTBased RealTime Soil Moisture Monitoring System for Smart Agriculture Using ESP32," Journal of Sustainable Supply Chain and Technology, vol. 1, no. 1, pp. 4956, 2026.
+[3] A. Joshi, T. Sonika, T. M., J. Singh, and P. Deepa, "IoT Based Smart Plant Monitoring System," International Journal for Research in Applied Science and Engineering Technology (IJRASET), 2024. DOI: 10.22214/ijraset.2024.58953.
+[4] B. T. Agyeman, M. Naouri, W. Appels, J. Liu, and S. L. Shah, "Integrating Machine Learning Paradigms and MixedInteger Model Predictive Control for Irrigation Scheduling," arXiv:2306.08715, Jun. 2023. [Online]. Available: https://arxiv.org/abs/2306.08715
+[5] Virtual University of Pakistan, CS605  Software Engineering II, Course Handouts (VU Process Model).
+[6] Google, "Firebase Documentation," [Online]. Available: https://firebase.google.com/docs
+[7] Espressif Systems, "ESP32 Series Documentation," [Online]. Available: https://docs.espressif.com
+[8] Scikitlearn Developers, "Scikitlearn User Guide," [Online]. Available: https://scikitlearn.org/stable/documentation.html
+[9] Google, "Flutter Documentation," [Online]. Available: https://docs.flutter.dev
+[10] Group Id BC220401947, "Smart Plant Care System with AIBased Monitoring and Mobile App  Software Requirements Specification," Version 1.0, Virtual University of Pakistan, 09/06/2026.

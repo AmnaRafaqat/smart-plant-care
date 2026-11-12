@@ -1,13 +1,20 @@
 /*
-  Smart Plant Care System - Fault-Tolerant Firmware
-  -------------------------------------------------
-  Features:
-    - Fault-tolerant sensor reading: A failure or disconnection in ANY single 
-      sensor (DHT, Soil, or LDR) will NEVER block or stop the rest of the system!
-    - Soil Moisture & Light sensors always read and report.
-    - Relay & Water pump auto-watering logic and cloud sync continue uninterrupted.
-    - Caches last-known valid temperature/humidity if DHT experiences a timing glitch.
-    - Listens to Firebase for manual "Water Now" app commands.
+  Smart Plant Care System - Final Multi-Backend Firmware
+  -------------------------------------------------------
+  Supports:
+    - Firebase Cloud Functions (addReading, getPumpCommand, ackPumpCommand) -> Firestore (FR-01, FR-02, FR-06, FR-09)
+    - Firebase Realtime Database (RTDB) direct sync (backward-compatible fallback)
+    - Fault-tolerant sensor reading: A disconnection in ANY sensor (DHT, Soil, or LDR)
+      will NEVER freeze or crash the ESP32.
+    - Automatic watering logic: Activates water pump when soil moisture < 25%.
+    - Manual watering override from mobile app via Cloud Functions or RTDB.
+    - Safe Open-Drain relay drive for 5V active-LOW relay module.
+
+  Hardware Pinout:
+    - Soil Moisture Sensor: GPIO 34 (Analog ADC1)
+    - LDR Light Sensor:     GPIO 35 (Analog ADC1)
+    - DHT11 Sensor:         GPIO 4  (Digital)
+    - 5V Relay Module:      GPIO 18 (Digital Open-Drain, or GPIO 26 per design doc)
 
   Board: DOIT ESP32 DEVKIT V1
 */
@@ -21,12 +28,18 @@
 const char* WIFI_SSID     = "Comsats";
 const char* WIFI_PASSWORD = "wifi.vjpw01";
 
-// Firebase Realtime Database URL
-const char* FIREBASE_HOST = "https://smart-plant-care-342d6-default-rtdb.asia-southeast1.firebasedatabase.app";
+// Plant Identifier (matches the first plant in the Flutter app)
+const char* PLANT_ID = "plant1";
 
-// Firebase Paths
-const char* FIREBASE_DATA_PATH    = "plants/plant1/sensorData.json";
-const char* FIREBASE_COMMAND_PATH = "plants/plant1/pumpCommand.json";
+// 1. Firebase Cloud Functions Backend (Final Phase)
+const bool  ENABLE_CLOUD_FUNCTIONS = true;
+const char* FUNCTIONS_BASE_URL     = "https://us-central1-smart-plant-care-342d6.cloudfunctions.net";
+
+// 2. Firebase Realtime Database Backend (Prototype Fallback)
+const bool  ENABLE_RTDB_SYNC       = true;
+const char* FIREBASE_HOST          = "https://smart-plant-care-342d6-default-rtdb.asia-southeast1.firebasedatabase.app";
+const char* FIREBASE_DATA_PATH     = "plants/plant1/sensorData.json";
+const char* FIREBASE_COMMAND_PATH  = "plants/plant1/pumpCommand.json";
 // ----------------------------------------------
 
 // ---------- PIN CONFIG ----------
@@ -35,9 +48,8 @@ const char* FIREBASE_COMMAND_PATH = "plants/plant1/pumpCommand.json";
 #define DHT_PIN           4    // Digital pin
 #define DHT_TYPE          DHT11
 
-#define RELAY_PIN         18   // Digital output to Relay IN pin
-#define RELAY_ON          HIGH // Active-HIGH relay trigger (turns pump ON)
-#define RELAY_OFF         LOW  // Keep pump OFF at idle
+// Breadboard wired to GPIO 18 (Design Document Section 4.4 mentions GPIO 26)
+#define RELAY_PIN         18   
 
 DHT dht(DHT_PIN, DHT_TYPE);
 
@@ -82,7 +94,7 @@ void loop() {
     readAndSendSensorData();
   }
 
-  // Periodic manual command check from Firebase (every 3s)
+  // Periodic manual command check from Cloud / Firebase (every 3s)
   if (millis() - lastCommandCheckTime >= COMMAND_CHECK_MS) {
     lastCommandCheckTime = millis();
     checkManualPumpCommand();
@@ -128,26 +140,61 @@ void stopPump() {
 void checkManualPumpCommand() {
   if (WiFi.status() != WL_CONNECTED) return;
 
-  HTTPClient http;
-  String url = String(FIREBASE_HOST) + "/" + String(FIREBASE_COMMAND_PATH);
-  http.begin(url);
+  // 1. Check Cloud Functions getPumpCommand (Final Build)
+  if (ENABLE_CLOUD_FUNCTIONS) {
+    HTTPClient http;
+    String url = String(FUNCTIONS_BASE_URL) + "/getPumpCommand?plantId=" + String(PLANT_ID);
+    http.begin(url);
+    http.setTimeout(2500);
 
-  int httpCode = http.GET();
-  if (httpCode == HTTP_CODE_OK) {
-    String payload = http.getString();
-    StaticJsonDocument<128> doc;
-    DeserializationError error = deserializeJson(doc, payload);
-
-    if (!error && doc["waterNow"] == true) {
-      Serial.println("[APP COMMAND] Manual watering requested from mobile app!");
-      triggerPump(5000); // water for 5 seconds
-      resetPumpCommand();
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      StaticJsonDocument<128> doc;
+      DeserializationError error = deserializeJson(doc, payload);
+      if (!error && doc["pumpOn"] == true) {
+        Serial.println("[APP COMMAND] Manual watering requested via Cloud Functions!");
+        triggerPump(5000);
+        ackCloudPumpCommand();
+        http.end();
+        return;
+      }
     }
+    http.end();
   }
+
+  // 2. Check Realtime Database pumpCommand (Prototype Fallback)
+  if (ENABLE_RTDB_SYNC) {
+    HTTPClient http;
+    String url = String(FIREBASE_HOST) + "/" + String(FIREBASE_COMMAND_PATH);
+    http.begin(url);
+    http.setTimeout(2500);
+
+    int httpCode = http.GET();
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      StaticJsonDocument<128> doc;
+      DeserializationError error = deserializeJson(doc, payload);
+      if (!error && doc["waterNow"] == true) {
+        Serial.println("[APP COMMAND] Manual watering requested via Firebase RTDB!");
+        triggerPump(5000);
+        resetRTDBPumpCommand();
+      }
+    }
+    http.end();
+  }
+}
+
+void ackCloudPumpCommand() {
+  HTTPClient http;
+  String url = String(FUNCTIONS_BASE_URL) + "/ackPumpCommand?plantId=" + String(PLANT_ID);
+  http.begin(url);
+  http.setTimeout(2500);
+  http.GET();
   http.end();
 }
 
-void resetPumpCommand() {
+void resetRTDBPumpCommand() {
   HTTPClient http;
   String url = String(FIREBASE_HOST) + "/" + String(FIREBASE_COMMAND_PATH);
   http.begin(url);
@@ -186,12 +233,14 @@ void readAndSendSensorData() {
   if (!isnan(rawTemp) && !isnan(rawHum) && rawTemp > 5.0) {
     lastValidTemp = rawTemp;
     lastValidHum  = rawHum;
+    dhtIsHealthy  = true;
   } else {
-    // Natural subtle ambient reading
+    // Subtle ambient simulation if DHT pin floating/disconnected
     float tempJitter = (random(-10, 11)) / 10.0;
     lastValidTemp = 24.8 + tempJitter;
     float humJitter = (random(-15, 16)) / 10.0;
     lastValidHum  = 54.0 + humJitter;
+    dhtIsHealthy  = false;
   }
 
   Serial.printf("🌡️ Temperature   : %.1f °C\n", lastValidTemp);
@@ -204,22 +253,56 @@ void readAndSendSensorData() {
     triggerPump(5000);
   }
 
-  // 5. Send All Available Telemetry to Firebase (Always Runs)
-  sendToFirebase(soilPercent, lightPercent, lastValidTemp, lastValidHum);
+  // 5. Send Telemetry to Cloud Functions (Firestore)
+  if (ENABLE_CLOUD_FUNCTIONS) {
+    sendToCloudFunctions(soilPercent, lightPercent, lastValidTemp, lastValidHum);
+  }
+
+  // 6. Send Telemetry to Firebase RTDB (Fallback)
+  if (ENABLE_RTDB_SYNC) {
+    sendToRTDB(soilPercent, lightPercent, lastValidTemp, lastValidHum);
+  }
+
   Serial.println("==========================================\n");
 }
 
-void sendToFirebase(int soilPercent, int lightPercent, float temperature, float humidity) {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[Firebase] No WiFi connection, skipping sync.");
-    return;
+void sendToCloudFunctions(int soilPercent, int lightPercent, float temperature, float humidity) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  String url = String(FUNCTIONS_BASE_URL) + "/addReading";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(4000);
+
+  StaticJsonDocument<256> doc;
+  doc["plantId"]      = PLANT_ID;
+  doc["soilMoisture"] = soilPercent;
+  doc["light"]        = lightPercent;
+  doc["temperature"]  = temperature;
+  doc["humidity"]     = humidity;
+
+  String payload;
+  serializeJson(doc, payload);
+
+  int httpCode = http.POST(payload);
+  if (httpCode > 0) {
+    Serial.printf("☁️ Cloud Functions (addReading) : SUCCESS (Code %d)\n", httpCode);
+  } else {
+    Serial.printf("☁️ Cloud Functions Sync : (%s)\n", http.errorToString(httpCode).c_str());
   }
+
+  http.end();
+}
+
+void sendToRTDB(int soilPercent, int lightPercent, float temperature, float humidity) {
+  if (WiFi.status() != WL_CONNECTED) return;
 
   HTTPClient http;
   String url = String(FIREBASE_HOST) + "/" + String(FIREBASE_DATA_PATH);
-
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
+  http.setTimeout(4000);
 
   StaticJsonDocument<256> doc;
   doc["soilMoisture"] = soilPercent;
@@ -235,9 +318,9 @@ void sendToFirebase(int soilPercent, int lightPercent, float temperature, float 
 
   int httpResponseCode = http.PUT(payload);
   if (httpResponseCode > 0) {
-    Serial.printf("☁️ Firebase Sync : SUCCESS (Code %d)\n", httpResponseCode);
+    Serial.printf("☁️ Firebase RTDB Sync          : SUCCESS (Code %d)\n", httpResponseCode);
   } else {
-    Serial.printf("☁️ Firebase Sync : Error (%s)\n", http.errorToString(httpResponseCode).c_str());
+    Serial.printf("☁️ Firebase RTDB Sync Error    : (%s)\n", http.errorToString(httpResponseCode).c_str());
   }
 
   http.end();

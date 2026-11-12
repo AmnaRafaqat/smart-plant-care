@@ -1,5 +1,53 @@
+# Compiled and binary files
 *.apk
 *.exe
 .DS_Store
 smart_plant_care_app_final.apk
+smart_plant_care_app.apk
 Hardware pictures/
+*.zip
+*.rar
+*.tar.gz
+
+# Node / Cloud Functions dependencies and logs
+node_modules/
+**/node_modules/
+npm-debug.log
+firebase-debug.log
+firebase-debug.*.log
+
+# Python / ML Service virtual environment and caches
+venv/
+**/venv/
+.venv/
+**/.venv/
+env/
+**/env/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Flutter / Dart build artifacts and caches
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+**/build/
+
+# IDE and Editor files
+.idea/
+**/.idea/
+*.iml
+**/*.iml
+*.ipr
+*.iws
+.vscode/
+**/.vscode/
+
+# Temporary extraction directory
+_cs619_req/
+_cs619_req.zip
